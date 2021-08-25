@@ -124,6 +124,7 @@ end;
 
 function TWinProfile.Close(const Index: integer): boolean;
 begin
+  BringToFront(Index);
   Result := Perform(WM_CLOSE, 0, 0, Index) = 0;
 
   if dbgLogProcessOp then
@@ -133,6 +134,7 @@ end;
 function TWinProfile.Execute(const CommandID: NativeUInt;
   const Index: integer): boolean;
 begin
+  BringToFront(Index);
   Result := Perform(WM_COMMAND, CommandID, 0, Index) = 0;
 
   if dbgLogProcessOp then
@@ -165,8 +167,10 @@ end;
 function TWinProfile.Perform(const Msg, WParam, LParam: NativeUInt;
   const Index: integer): NativeUInt;
 begin
-  if (Index >= 0) and (Index < Count) then
-    Result := SendMessage(Processes[0].Data, Msg, WParam, LParam)
+  if (Index >= 0) and (Index < Count) and (Processes[0].Data <> 0) then begin
+    PostMessage(Processes[0].Data, Msg, WParam, LParam);
+    Result := 0;
+  end
   else
     Result := NativeUInt(-1);
 

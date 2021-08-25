@@ -40,6 +40,7 @@ object WinBoxMain: TWinBoxMain
     ItemHeight = 48
     TabOrder = 0
     OnContextPopup = ListContextPopup
+    OnDblClick = ListDblClick
     OnDrawItem = ListDrawItem
     OnKeyDown = ListKeyDown
     OnKeyUp = ListKeyUp
@@ -62,8 +63,6 @@ object WinBoxMain: TWinBoxMain
     TabOrder = 1
     object tabHome: TTabSheet
       Caption = 'Kezd'#337'lap'
-      ExplicitLeft = 6
-      ExplicitTop = 22
       DesignSize = (
         483
         297)
@@ -92,7 +91,7 @@ object WinBoxMain: TWinBoxMain
         Height = 16
         Anchors = [akLeft, akTop, akRight]
         AutoSize = False
-        Caption = 'K'#246'sz'#246'nti '#246'nt az WinBox for 86Box!'
+        Caption = 'K'#246'sz'#246'nti '#246'nt a WinBox for 86Box!'
         Font.Charset = DEFAULT_CHARSET
         Font.Color = clWindowText
         Font.Height = -13
