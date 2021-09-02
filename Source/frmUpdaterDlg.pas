@@ -100,14 +100,11 @@ resourcestring
   FileJenkins           = '86box-jenkins.zip';
   FileEmpty             = '-';
   DlgFooterText         = 'UpdateDlg.FooterText';
-  DlgDetailsText        = 'UpdateDlg.DetailsText';
-  DlgDetailsInfo        = 'UpdateDlg.DetailsInfo';
-  DlgDetailsChanges     = 'UpdateDlg.DetailsChanges';
   DlgAskAllowUpdate     = 'UpdateDlg.AskAllowUpdate';
   DlgAskLocalNewer      = 'UpdateDlg.AskLocalNewer';
   DlgAskUnknown         = 'UpdateDlg.AskUnknownVer';
   DlgAskFirstDownload   = 'UpdateDlg.AskFirstDownload';
-  ECantAccessServer     = 'UpdateDlg.ECantAccessServer';
+  DlgDetailsInfo        = 'UpdateDlg.DetailsInfo';
 
 function TUpdaterDlg.AskUpdateAction: boolean;
 var
@@ -133,7 +130,7 @@ begin
       MainIcon := tdiWarning;
       FooterText := _T(DlgFooterText);
     end
-    else if CompareDate(LocalDate, BuildDate) >= 0 then begin
+    else if CompareDateTime(LocalDate, BuildDate) >= 0 then begin
       Text := _T(DlgAskLocalNewer);
       Flags := Flags - [tfUseHiconMain];
       MainIcon := tdiWarning;
@@ -223,7 +220,7 @@ var
     BaseFolder := ExtractFilePath(EmulatorPath);
     ForceDirectories(BaseFolder);
 
-    URL := jenkinsGetBuild(Config.Repository, Build);
+    URL := jenkinsGetBuild(Repository, Build);
   end;
 
 begin
@@ -279,6 +276,7 @@ begin
       Zip.Open(TempFolder + File86BoxRoms, zmRead);
       Zip.ExtractAll(BaseFolder);
       Zip.Close;
+      FileSetDate(EmulatorPath, DateTimeToFileDate(Now));
       CheckCancel;
 
       if GetSource then begin
@@ -331,7 +329,7 @@ begin
     if (Build <> -1) and (not
           FileExists(Config.EmulatorPath) or
           ((LocalDate <> 0) and
-           (CompareDate(LocalDate, BuildDate) < 0))) then
+           (CompareDateTime(LocalDate, BuildDate) < 0))) then
       Result := AskUpdateAction
     else
       Result := false;
