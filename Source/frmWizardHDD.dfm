@@ -11,14 +11,13 @@ object WizardHDD: TWizardHDD
   Font.Height = -11
   Font.Name = 'Tahoma'
   Font.Style = []
-  OldCreateOrder = False
   Position = poOwnerFormCenter
   OnCreate = FormCreate
   OnShow = FormShow
+  PixelsPerInch = 96
   DesignSize = (
     479
     309)
-  PixelsPerInch = 96
   TextHeight = 13
   object imgBanner: TImage
     AlignWithMargins = True
@@ -53,16 +52,12 @@ object WizardHDD: TWizardHDD
     Top = 0
     Width = 337
     Height = 263
-    ActivePage = tabResults
+    ActivePage = tabCapacity
     Align = alClient
     TabOrder = 0
     object tabWelcome: TTabSheet
       Caption = 'tabWelcome'
       TabVisible = False
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         329
         253)
@@ -101,10 +96,6 @@ object WizardHDD: TWizardHDD
       Caption = 'tabFormat'
       ImageIndex = 6
       TabVisible = False
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       object lbFormatTitle: TLabel
         Left = 16
         Top = 16
@@ -196,10 +187,6 @@ object WizardHDD: TWizardHDD
       Caption = 'tabBasic'
       ImageIndex = 1
       TabVisible = False
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         329
         253)
@@ -279,6 +266,8 @@ object WizardHDD: TWizardHDD
         Width = 250
         Height = 21
         Anchors = [akLeft, akTop, akRight]
+        BiDiMode = bdLeftToRight
+        ParentBiDiMode = False
         TabOrder = 0
         Text = 'D:\teszt.img'
       end
@@ -312,10 +301,6 @@ object WizardHDD: TWizardHDD
       Caption = 'tabCapacity'
       ImageIndex = 2
       TabVisible = False
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         329
         253)
@@ -335,7 +320,7 @@ object WizardHDD: TWizardHDD
       object lbCapacityDesc: TLabel
         Left = 16
         Top = 48
-        Width = 281
+        Width = 297
         Height = 33
         Anchors = [akLeft, akTop, akRight]
         AutoSize = False
@@ -466,10 +451,6 @@ object WizardHDD: TWizardHDD
       Caption = 'tabParameters'
       ImageIndex = 3
       TabVisible = False
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         329
         253)
@@ -710,10 +691,6 @@ object WizardHDD: TWizardHDD
       ImageIndex = 5
       ParentDoubleBuffered = False
       TabVisible = False
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
     end
   end
   object btnNext: TButton

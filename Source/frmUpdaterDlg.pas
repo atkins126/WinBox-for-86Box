@@ -75,6 +75,7 @@ type
 
     procedure GetTranslation(Language: TLanguage); stdcall;
     procedure Translate; stdcall;
+    procedure FlipBiDi; stdcall;
   end;
 
 var
@@ -106,6 +107,28 @@ resourcestring
   DlgAskFirstDownload   = 'UpdateDlg.AskFirstDownload';
   DlgDetailsInfo        = 'UpdateDlg.DetailsInfo';
 
+function jenkinsGetBuild(URL: string; const Build: integer): string;
+var
+  List: TStringList;
+  I: integer;
+begin
+  List := uWebUtils.jenkinsGetBuild(URL, Build);
+
+  Result := '';
+  case List.Count of
+    1: Result := List[0];
+    else
+      for I := 0 to List.Count - 1 do
+        if pos(Config.Artifact, List[I]) <> 0 then begin
+          Result := List[I];
+          break;
+        end;
+  end;
+
+  List.Free;
+end;
+
+
 function TUpdaterDlg.AskUpdateAction: boolean;
 var
   Path: array [0..52] of char;
@@ -114,7 +137,13 @@ var
   List: TStringList;
 begin
   with AskUpdateDialog do begin
+    AskUpdateDialog.Caption := Application.Title;
     Title := Language.ReadString('UpdateDlg', 'lbTitle', Title);
+
+    if LocaleIsBiDi then
+      Flags := Flags + [tfRtlLayout]
+    else
+      Flags := Flags - [tfRtlLayout];
 
     if Build = -1 then
       raise Exception.Create(_T(ECantAccessServer))
@@ -336,6 +365,11 @@ begin
   end;
 end;
 
+procedure TUpdaterDlg.FlipBiDi;
+begin
+  SetCommCtrlBiDi(Handle, LocaleIsBiDi);
+end;
+
 procedure TUpdaterDlg.FormClose(Sender: TObject; var Action: TCloseAction);
 begin
   if (pbProgress.Position < 100) and (pbProgress.State <> pbsError) then
@@ -361,8 +395,6 @@ begin
         Icon.Free;
       end;
 
-  AskUpdateDialog.Caption := Application.Title;
-
   ChangeLog := TStringList.Create;
 end;
 
@@ -374,7 +406,8 @@ end;
 procedure TUpdaterDlg.FormShow(Sender: TObject);
 begin
   Translate;
-  Caption := Application.Title;
+  if LocaleIsBiDi then
+    FlipBiDi;
 
   Cancelled := 0;
   pbProgress.Position := 0;
@@ -446,6 +479,7 @@ end;
 procedure TUpdaterDlg.Translate;
 begin
   Language.Translate('UpdateDlg', Self);
+  Caption := Application.Title;
 end;
 
 procedure TUpdaterDlg.ZipProgress(Sender: TObject; FileName: string;

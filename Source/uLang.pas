@@ -24,12 +24,18 @@ unit uLang;
 interface
 
 uses Windows, SysUtils, Classes, Controls, StdCtrls, Menus, ActnList,
-     ExtCtrls, Forms, CheckLst, IniFiles;
+     ExtCtrls, Forms, CheckLst, IniFiles, CommCtrl;
 
 const
   Codes: array [0..1, 0..10] of char =
     (('''', '"', '\', '0', 'a', 'b', 'f', 'n', 'r', 't', 'v'),
      ('''', '"', '\', #0,  #7,  #8,  #12, #10, #13,  #9, #11));
+
+  BiDiModes: array [boolean] of TBiDiMode =
+    (bdLeftToRight, bdRightToLeft);
+
+  Alignments: array [boolean] of TAlignment =
+    (taLeftJustify, taRightJustify);
 
 type
   TLanguage = class(TMemIniFile)
@@ -48,38 +54,58 @@ type
     ['{D9A1A056-B556-4BF6-B2D3-EDF9F14B1F47}']
     procedure GetTranslation(Language: TLanguage); stdcall;
     procedure Translate; stdcall;
+    procedure FlipBiDi; stdcall;
   end;
 
 function GetSystemLanguage: string; inline;
 function GetLanguage(const LCID: LangID): string;
+function GetLCID(const Locale: string): LCID;
+function GetLocaleText(const Locale: string;
+  const AType: DWORD = LOCALE_SLOCALIZEDDISPLAYNAME): string;
 
 function EscapeString(const Input: string): string;
 function UnescapeString(const Input: string): string;
 
+resourcestring
+  PrgBaseLanguage    = 'hu-HU';
+  PrgDefaultLanguage = 'system';
+  PrgSystemLanguage  = 'system';
+
 var
+  //The currently loaded language - the initialization will
+  // happen in MainForm.ChangeLanguage()
   Language: TLanguage = nil;
-  Locale: string;
+
+  //Set locale to an empty value, to let the main form to load
+  // any kind of language on start
+  Locale: string = '-';
+
+  //The designed forms are LTR, so start with this. If this will
+  // change it'll mean we have to flip the forms.
+  LocaleIsBiDi: boolean = false;
+
+  //We'll store the -lang parameter's override here. The MainForm
+  //  will check this variable too, when decides the language.
+  LocaleOverride: string = '';
 
 function _T(const Key: string): string; overload;
 function _T(const Key: string; const Args: array of const): string; overload;
 function _P(const Key: string): PChar; overload;
 function _P(const Key: string; const Args: array of const): PChar; overload;
 
-function TryLoadLang(const FileName: string): TLanguage;
+function TryLoadLocale(var Locale: string; out NewBiDi: boolean): TLanguage;
+function GetAvailLangs: TStringList;
+
+procedure SetWindowExStyle(const Handle: HWND; const Flag: NativeInt; Value: boolean);
+procedure SetCommCtrlBiDi(const Handle: HWND; const Value: boolean); inline;
+procedure SetListViewBiDi(const Handle: HWND; const Value: boolean);
+procedure SetScrollBarBiDi(const Handle: HWND; const ToLeft: boolean); inline;
+procedure SetCatPanelsBiDi(const Group: TCategoryPanelGroup; const Value: boolean);
+
+//Source: http://archives.miloush.net/michkap/archive/2006/03/03/542963.html
+function GetLocaleIsBiDi(const Locale: string): boolean;
 
 implementation
-
-function TryLoadLang(const FileName: string): TLanguage;
-begin
-  try
-    Result := TLanguage.Create(FileName, TEncoding.UTF8);
-  except
-    on E: EEncodingError do
-      Result := TLanguage.Create(FileName);
-    else
-      raise;
-  end;
-end;
 
 resourcestring
   StrStrings = 'Strings';
@@ -106,32 +132,102 @@ begin
   Result := PChar(_T(Key, Args));
 end;
 
+type
+  TInitLocaleHelper = record
+    Input, Root, RetVal: string;
+  end;
+  PInitLocaleHelper = ^TInitLocaleHelper;
+
+
+function EnumLocaleProcEx(Locale: PChar;
+  Flags: DWORD; Data: PInitLocaleHelper): Integer; stdcall;
+var
+  Temp: string;
+begin
+  Temp := String(Locale);
+
+  with Data^ do
+    if (pos(Input, Temp) = 1) and FileExists(Root + Temp) then begin
+      RetVal := Temp;
+      Result := ord(false);
+    end
+    else
+      Result := ord(true);
+end;
+
+function TryLoadLocale(var Locale: string; out NewBiDi: boolean): TLanguage;
+var
+  FileRoot, FileName: string;
+  Helper: TInitLocaleHelper;
+
+  function TryLoadFile(const FileName: string): TLanguage;
+  begin
+    try
+      Result := TLanguage.Create(FileName, TEncoding.UTF8);
+    except
+      on E: EEncodingError do
+        Result := TLanguage.Create(FileName);
+      else
+        raise;
+    end;
+  end;
+
+begin
+  //If Locale is not specified, use the system locale
+  if Locale = PrgSystemLanguage then
+    Locale := GetSystemLanguage;
+
+  //Try to use the determined language
+  FileRoot := ExtractFilePath(paramstr(0)) + PfLanguagesPath + StrFileNameBase;
+  FileName := FileRoot + Locale;
+
+  if not FileExists(FileName) then begin
+    //If there is no such language file, try to use any from same group
+    //If no any similar languages, fallback to en-US
+    with Helper do begin
+      Input := Copy(Locale, 1, pos('-', Locale) - 1);
+      Root := FileRoot;
+      RetVal := 'en-US';
+    end;
+
+    EnumSystemLocalesEx(@EnumLocaleProcEx, LOCALE_ALL, LParam(@Helper), nil);
+
+    //If the en-US is used as fallback we have to check that file is exists
+    //  and if not then use hu-HU, since it's the program's base language
+    with Helper do begin
+      if (RetVal = 'en-US') and not FileExists(Root + RetVal) then begin
+        Locale := PrgBaseLanguage;
+        FileName := ''; //Don't load language file, to make clear, it's invalid
+      end
+      else begin
+        Locale := RetVal;
+        FileName := Root + RetVal;
+      end;
+    end;
+  end;
+
+  //Finally load the selected language file, and set locale.
+  NewBiDi := GetLocaleIsBiDi(Locale);
+  Result := TryLoadFile(FileName);
+end;
+
+
 procedure InitLanguage;
 var
-  FileName: string;
   I: integer;
 begin
-  Locale := GetSystemLanguage;
+  //First of all decide what language we want to load.
+  //We can use the system language, or use the one from -lang.
   if ParamCount > 1 then
     for I := 1 to ParamCount - 1 do
       if LowerCase(ParamStr(I)) = '-lang' then begin
-        Locale := ParamStr(I + 1);
+        LocaleOverride := ParamStr(I + 1);
         break;
       end;
 
-  FileName := ExtractFilePath(paramstr(0)) + PfLanguagesPath + StrFileNameBase + Locale;
-
-  if not FileExists(FileName) then begin
-    Locale := 'en-US';
-    FileName := ExtractFilePath(paramstr(0)) + PfLanguagesPath +  StrFileNameBase + Locale;
-  end;
-
-  if not FileExists(FileName) then begin
-    Locale := 'hu-HU';
-    FileName := '';
-  end;
-
-  Language := TryLoadLang(FileName);
+  //Don't load the language here, let the MainForm load the
+  //   language, with respecting the LocaleOverride parameter.
+  Language := nil;
 end;
 
 const
@@ -154,6 +250,116 @@ begin
       Result := String(PChar(@Buffer[0]))
   else
       Result := '';
+end;
+
+function GetLCID(const Locale: string): LCID;
+begin
+  Result := LocaleNameToLCID(PChar(Locale), 0);
+end;
+
+function GetLocaleText(const Locale: string; const AType: DWORD): string;
+var
+  Size: integer;
+  Temp: array of char;
+begin
+  Size := GetLocaleInfoEx(PChar(Locale), AType, nil, 0);
+
+  if Size > 0 then begin
+    SetLength(Temp, Size);
+    GetLocaleInfoEx(PChar(Locale), AType, @Temp[0], Size);
+    Result := String(PChar(@Temp[0]));
+  end
+  else
+    Result := Locale;
+end;
+
+//Source: http://archives.miloush.net/michkap/archive/2006/03/03/542963.html
+function GetLocaleIsBiDi(const Locale: string): boolean;
+var
+  Signature: TLocaleSignature;
+begin
+  if GetLocaleInfoEx(PChar(Locale), LOCALE_FONTSIGNATURE,
+       @Signature, SizeOf(Signature) div SizeOf(char)) <> 0 then
+    Result := (Signature.lsUsb[3] and $8000000) <> 0
+  else
+    Result := false;
+end;
+//---
+
+procedure SetWindowExStyle(const Handle: HWND;
+  const Flag: NativeInt; Value: boolean);
+var
+  ExStyle: NativeInt;
+begin
+  ExStyle := GetWindowLongPtr(Handle, GWL_EXSTYLE);
+
+  if Value then
+    ExStyle := ExStyle or Flag
+  else
+    ExStyle := ExStyle and not Flag;
+
+  SetWindowLongPtr(Handle, GWL_EXSTYLE, ExStyle);
+  InvalidateRect(Handle, nil, true);
+end;
+
+procedure SetCommCtrlBiDi(const Handle: HWND; const Value: boolean);
+begin
+  SetWindowExStyle(Handle, WS_EX_LAYOUTRTL, Value);
+end;
+
+procedure SetListViewBiDi(const Handle: HWND; const Value: boolean);
+begin
+  SetCommCtrlBiDi(ListView_GetHeader(Handle), Value);
+  SetCommCtrlBiDi(Handle, Value);
+end;
+
+procedure SetScrollBarBiDi(const Handle: HWND; const ToLeft: boolean);
+begin
+  SetWindowExStyle(Handle, WS_EX_LEFTSCROLLBAR, ToLeft);
+end;
+
+procedure SetCatPanelsBiDi(const Group: TCategoryPanelGroup; const Value: boolean);
+var
+  Success: boolean;
+  Panel: TCategoryPanel;
+  Surface: TCategoryPanelSurface;
+  I: Integer;
+begin
+  with Group do
+    for I := 0 to Panels.Count - 1 do begin
+      Panel := TObject(Panels[I]) as TCategoryPanel;
+      SetCommCtrlBiDi(Panel.Handle, LocaleIsBiDi);
+
+      Surface := Panel.Controls[0] as TCategoryPanelSurface;
+      Success := LockWindowUpdate(Surface.Handle);
+      try
+        SetCommCtrlBiDi(Surface.Handle, LocaleIsBiDi);
+      finally
+        if Success then begin
+          LockWindowUpdate(0);
+          Invalidate;
+        end;
+      end;
+    end;
+end;
+
+function GetAvailLangs: TStringList;
+var
+  FileRoot, Temp: string;
+  SearchRec: TSearchRec;
+begin
+  Result := TStringList.Create;
+  FileRoot := ExtractFilePath(paramstr(0)) + PfLanguagesPath + StrFileNameBase;
+
+  if FindFirst(FileRoot + '*', faAnyFile, SearchRec) = 0 then begin
+    repeat
+      Temp := ExtractFileExt(SearchRec.Name);
+      if length(Temp) >= 2 then
+        Result.Add(Copy(Temp, 2, MaxInt));
+    until FindNext(SearchRec) <> 0;
+
+    FindClose(SearchRec);
+  end;
 end;
 
 function EscapeString(const Input: string): string;
@@ -359,10 +565,10 @@ begin
     for I := 0 to ActionCount - 1 do
       with Actions[I] do begin
         if Caption <> '' then
-          WriteString(Section, Name, Caption);
+          WriteString(Section, Name, EscapeString(Caption));
 
         if Hint <> '' then
-          WriteString(Section, Name + '.Hint', Hint);
+          WriteString(Section, Name + '.Hint', EscapeString(Hint));
       end;
 end;
 
@@ -375,10 +581,10 @@ begin
     for I := 0 to ActionCount - 1 do
       with Actions[I] do begin
         if Caption <> '' then
-          Caption := ReadString(Section, Name, Caption);
+          Caption := UnescapeString(ReadString(Section, Name, Caption));
 
         if Hint <> '' then
-          Hint := ReadString(Section, Name + '.Hint', Hint);
+          Hint := UnescapeString(ReadString(Section, Name + '.Hint', Hint));
       end;
 end;
 

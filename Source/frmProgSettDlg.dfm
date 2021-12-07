@@ -11,21 +11,21 @@ object ProgSettDlg: TProgSettDlg
   Font.Height = -11
   Font.Name = 'Tahoma'
   Font.Style = []
-  OldCreateOrder = False
   Position = poMainFormCenter
   OnCreate = FormCreate
+  OnDestroy = FormDestroy
   OnShow = Reload
+  PixelsPerInch = 96
   DesignSize = (
     460
     516)
-  PixelsPerInch = 96
   TextHeight = 13
   object pcPages: TPageControl
     Left = 8
     Top = 8
     Width = 444
     Height = 458
-    ActivePage = tabGeneral
+    ActivePage = tabTools
     Anchors = [akLeft, akTop, akRight, akBottom]
     TabOrder = 0
     object tabGeneral: TTabSheet
@@ -66,16 +66,18 @@ object ProgSettDlg: TProgSettDlg
         object lbPath: TLabel
           Left = 24
           Top = 72
-          Width = 48
-          Height = 13
+          Width = 145
+          Height = 25
+          AutoSize = False
           Caption = '&El'#233'r'#233'si '#250't:'
           FocusControl = edPath
         end
         object lbEraseProt: TLabel
           Left = 24
           Top = 159
-          Width = 92
-          Height = 13
+          Width = 101
+          Height = 27
+          AutoSize = False
           Caption = 'F'#225'jl&t'#246'rl'#233's-v'#233'delem:'
           FocusControl = cbEraseProt
         end
@@ -112,6 +114,8 @@ object ProgSettDlg: TProgSettDlg
           Top = 91
           Width = 303
           Height = 21
+          BiDiMode = bdLeftToRight
+          ParentBiDiMode = False
           TabOrder = 0
           Text = 'edPath'
         end
@@ -161,31 +165,35 @@ object ProgSettDlg: TProgSettDlg
         object lbTrayBehavior: TLabel
           Left = 18
           Top = 32
-          Width = 107
-          Height = 13
+          Width = 119
+          Height = 21
+          AutoSize = False
           Caption = '&'#201'rtes'#237't'#233'si ter'#252'leti ikon:'
           FocusControl = cbTrayBehavior
         end
         object lbLaunchTimeout: TLabel
           Left = 18
           Top = 95
-          Width = 144
-          Height = 13
+          Width = 151
+          Height = 20
+          AutoSize = False
           Caption = 'Emul'#225'tor ind'#237't'#225'si &id'#337't'#250'll'#233'p'#233's:'
           FocusControl = spLaunchTimeout
         end
         object lbMilliseconds: TLabel
           Left = 285
           Top = 95
-          Width = 68
-          Height = 13
+          Width = 92
+          Height = 20
+          AutoSize = False
           Caption = 'ezredm'#225'sodp.'
         end
         object lbWinBoxUpdate: TLabel
           Left = 18
           Top = 63
-          Width = 98
-          Height = 13
+          Width = 119
+          Height = 26
+          AutoSize = False
           Caption = '&Friss'#237't'#233'sek kezel'#233'se:'
           FocusControl = cbWinBoxUpdate
         end
@@ -286,17 +294,19 @@ object ProgSettDlg: TProgSettDlg
         object lb86BoxPath: TLabel
           Left = 24
           Top = 71
-          Width = 48
-          Height = 13
+          Width = 153
+          Height = 26
+          AutoSize = False
           Caption = '&El'#233'r'#233'si '#250't:'
           FocusControl = ed86Box
         end
         object lbVersion: TLabel
-          Left = 324
+          Left = 280
           Top = 71
-          Width = 60
-          Height = 13
+          Width = 104
+          Height = 26
           Alignment = taRightJustify
+          AutoSize = False
           Caption = 'v3.0.0.1024'
         end
         object btn86Box: TButton
@@ -314,6 +324,8 @@ object ProgSettDlg: TProgSettDlg
           Top = 90
           Width = 311
           Height = 21
+          BiDiMode = bdLeftToRight
+          ParentBiDiMode = False
           TabOrder = 0
           Text = 'ed86Box'
           OnChange = ed86BoxChange
@@ -350,18 +362,19 @@ object ProgSettDlg: TProgSettDlg
         DesignSize = (
           402
           202)
-        object lbRepository: TLabel
-          Left = 18
-          Top = 21
-          Width = 175
-          Height = 13
-          Caption = '86Box beszerz'#233'se ebb'#337'l a &forr'#225'sb'#243'l:'
-          FocusControl = cbRepositories
+        object lbArtifact: TLabel
+          Left = 23
+          Top = 29
+          Width = 354
+          Height = 28
+          AutoSize = False
+          Caption = 'Let'#246'lt'#233'sre kijel'#246'lt 86Box forr'#225's&t'#237'pus:'
+          FocusControl = edArtifact
         end
         object cbAutoUpdate: TCheckBox
           Left = 18
-          Top = 143
-          Width = 303
+          Top = 149
+          Width = 300
           Height = 17
           Anchors = [akLeft, akRight, akBottom]
           Caption = 'Emul'#225'tor friss'#237't'#233'sek keres'#233'se &automatikusan'
@@ -371,27 +384,72 @@ object ProgSettDlg: TProgSettDlg
         end
         object cbGetSource: TCheckBox
           Left = 18
-          Top = 166
+          Top = 170
           Width = 265
           Height = 17
           Anchors = [akLeft, akRight, akBottom]
           Caption = '&Forr'#225'sk'#243'd let'#246'lt'#233'se, ha lehets'#233'ges'
           TabOrder = 2
         end
-        object cbRepositories: TComboBox
-          Left = 18
-          Top = 40
-          Width = 367
-          Height = 97
-          Style = csSimple
+        object edArtifact: TEdit
+          Left = 24
+          Top = 48
+          Width = 353
+          Height = 21
           Anchors = [akLeft, akTop, akRight, akBottom]
-          ItemIndex = 0
           TabOrder = 0
           Text = 'https://ci.86box.net/job/86Box'
-          Items.Strings = (
-            'https://ci.86box.net/job/86Box'
-            'https://ci.86box.net/job/86Box-Dev'
-            'https://ci.86box.net/job/86Box-Debug')
+          OnChange = edArtifactChange
+        end
+        object tvArtifact: TTreeView
+          Left = 23
+          Top = 75
+          Width = 353
+          Height = 63
+          BiDiMode = bdLeftToRight
+          HideSelection = False
+          Indent = 19
+          ParentBiDiMode = False
+          ReadOnly = True
+          TabOrder = 3
+          OnChange = tvArtifactChange
+          Items.NodeData = {
+            03020000005C000000000000000000000000000000FFFFFFFF00000000000000
+            0002000000011FDA006A002000640069006E0061006D0069006B007500730020
+            00FA006A007200610066006F0072006400ED007400F300200028006200E90074
+            00610029004A0000000000000000000000FFFFFFFFFFFFFFFF00000000000000
+            00020000000116570069006E0064006F007700730020002D0020007800360034
+            0020002800360034002D006200690074002900520000000000000000000000FF
+            FFFFFFFFFFFFFF000000000000000000000000011A3800360042006F0078002D
+            004E00440052002D00440065006200750067002D00570069006E0064006F0077
+            0073002D0036003400460000000000000000000000FFFFFFFFFFFFFFFF000000
+            00000000000000000001143800360042006F0078002D004E00440052002D0057
+            0069006E0064006F00770073002D00360034004A0000000000000000000000FF
+            FFFFFFFFFFFFFF0000000000000000020000000116570069006E0064006F0077
+            00730020002D00200078003800360020002800330032002D0062006900740029
+            00520000000000000000000000FFFFFFFFFFFFFFFF0000000000000000000000
+            00011A3800360042006F0078002D004E00440052002D00440065006200750067
+            002D00570069006E0064006F00770073002D0033003200460000000000000000
+            000000FFFFFFFFFFFFFFFF00000000000000000000000001143800360042006F
+            0078002D004E00440052002D00570069006E0064006F00770073002D00330032
+            0068000000000000000000000001000000FFFFFFFF0000000000000000020000
+            0001255200E900670069002000640069006E0061006D0069006B007500730020
+            00FA006A007200610066006F0072006400ED007400F3002000280061006A00E1
+            006E006C006F007400740029004A0000000000000000000000FFFFFFFFFFFFFF
+            FF0000000000000000020000000116570069006E0064006F007700730020002D
+            00200078003600340020002800360034002D0062006900740029004A00000000
+            00000000000000FFFFFFFFFFFFFFFF0000000000000000000000000116380036
+            0042006F0078002D00440065006200750067002D00570069006E0064006F0077
+            0073002D00360034003E0000000000000000000000FFFFFFFFFFFFFFFF000000
+            00000000000000000001103800360042006F0078002D00570069006E0064006F
+            00770073002D00360034004A0000000000000000000000FFFFFFFFFFFFFFFF00
+            00000000000000020000000116570069006E0064006F007700730020002D0020
+            0078003800360020002800330032002D0062006900740029004A000000000000
+            0000000000FFFFFFFFFFFFFFFF00000000000000000000000001163800360042
+            006F0078002D00440065006200750067002D00570069006E0064006F00770073
+            002D00330032003E0000000000000000000000FFFFFFFFFFFFFFFF0000000000
+            0000000000000001103800360042006F0078002D00570069006E0064006F0077
+            0073002D0033003200}
         end
       end
     end
@@ -410,7 +468,7 @@ object ProgSettDlg: TProgSettDlg
         Caption = #218'j g'#233'pek megjelen'#233'se'
         TabOrder = 0
         object imgDisplay: TImage
-          Left = 20
+          Left = 18
           Top = 24
           Width = 32
           Height = 32
@@ -418,7 +476,7 @@ object ProgSettDlg: TProgSettDlg
         end
         object lbDefaultDisplay: TLabel
           Left = 32
-          Top = 90
+          Top = 89
           Width = 353
           Height = 28
           AutoSize = False
@@ -431,16 +489,18 @@ object ProgSettDlg: TProgSettDlg
         object lbFullscreenSizing: TLabel
           Left = 32
           Top = 238
-          Width = 141
-          Height = 13
+          Width = 154
+          Height = 27
+          AutoSize = False
           Caption = '&Teljes k'#233'perny'#337's m'#233'retez'#233's: '
           FocusControl = cbFullscreenSizing
         end
         object lbWindowSizing: TLabel
           Left = 32
           Top = 211
-          Width = 108
-          Height = 13
+          Width = 154
+          Height = 21
+          AutoSize = False
           Caption = '&Ablak m'#233'retez'#233'si m'#243'd:'
         end
         object lbAppearance: TLabel
@@ -466,7 +526,7 @@ object ProgSettDlg: TProgSettDlg
         object rbCustomDisplay: TRadioButton
           Left = 18
           Top = 120
-          Width = 183
+          Width = 351
           Height = 17
           Caption = '&Egy'#233'ni m'#233'retez'#233'si be'#225'll'#237't'#225'sok'
           TabOrder = 1
@@ -477,7 +537,6 @@ object ProgSettDlg: TProgSettDlg
           Top = 143
           Width = 337
           Height = 58
-          OnClickCheck = CustomDisplayChange
           ItemHeight = 13
           Items.Strings = (
             'R'#246'gz'#237'tett 4:3 k'#233'par'#225'ny megtart'#225'sa'
@@ -491,6 +550,7 @@ object ProgSettDlg: TProgSettDlg
             'Kil'#233'p'#233'si meger'#337's'#237't'#233's k'#233'r'#233'se'
             'Discord t'#225'mogat'#225's enged'#233'lyez'#233'se')
           TabOrder = 2
+          OnClickCheck = CustomDisplayChange
         end
         object cbFullscreenSizing: TComboBox
           Left = 192
@@ -529,7 +589,7 @@ object ProgSettDlg: TProgSettDlg
         object rbManualOptions: TRadioButton
           Left = 18
           Top = 261
-          Width = 215
+          Width = 351
           Height = 17
           Caption = '&K'#233'zi megad'#225's'#250' be'#225'll'#237't'#225'sok'
           TabOrder = 5
@@ -572,6 +632,150 @@ object ProgSettDlg: TProgSettDlg
           Caption = '&Bet'#246'lt'#233's f'#225'jlb'#243'l...'
           TabOrder = 7
           OnClick = btnManOptLoadClick
+        end
+      end
+    end
+    object tabLanguage: TTabSheet
+      Caption = 'Nyelv'
+      ImageIndex = 5
+      object grpLanguage: TGroupBox
+        Left = 16
+        Top = 16
+        Width = 404
+        Height = 393
+        Caption = 'Nyelvi be'#225'll'#237't'#225'sok'
+        TabOrder = 0
+        DesignSize = (
+          404
+          393)
+        object imgLanguage: TImage
+          Left = 18
+          Top = 24
+          Width = 32
+          Height = 32
+        end
+        object lbLanguage: TLabel
+          Left = 68
+          Top = 24
+          Width = 317
+          Height = 41
+          Anchors = [akLeft, akTop, akRight]
+          AutoSize = False
+          Caption = 
+            'Ebben a szekci'#243'ban m'#243'dos'#237'thatja a program '#233's az emul'#225'tor nyelvve' +
+            'l kapcsolatos viselked'#233'si be'#225'll'#237't'#225'sait.'
+          WordWrap = True
+        end
+        object lbProgLang: TLabel
+          Left = 18
+          Top = 73
+          Width = 167
+          Height = 24
+          AutoSize = False
+          Caption = 'A &program nyelve:'
+          FocusControl = cbProgLang
+        end
+        object lbEmuLang: TLabel
+          Left = 18
+          Top = 162
+          Width = 199
+          Height = 23
+          AutoSize = False
+          Caption = 'Az emul'#225'tor nyelve:'
+        end
+        object lbEmuLangAvail: TLabel
+          Left = 40
+          Top = 234
+          Width = 193
+          Height = 23
+          AutoSize = False
+          Caption = 'Jelenleg &el'#233'rhet'#337' nyelvek:'
+          FocusControl = cbEmuLang
+        end
+        object cbProgLang: TComboBox
+          Left = 32
+          Top = 96
+          Width = 329
+          Height = 21
+          Style = csDropDownList
+          Anchors = [akLeft, akTop, akRight]
+          ItemIndex = 0
+          TabOrder = 0
+          Text = '(A rendszer alap'#233'rtelmezett nyelve)'
+          OnChange = UpdateLangRadio
+          Items.Strings = (
+            '(A rendszer alap'#233'rtelmezett nyelve)')
+        end
+        object btnDefProgLang: TButton
+          Tag = 5
+          Left = 246
+          Top = 123
+          Width = 115
+          Height = 25
+          Caption = '&Alap'#233'rtelmezett'
+          TabOrder = 1
+          OnClick = btnDefaultClick
+        end
+        object rbEmuLangSync: TRadioButton
+          Left = 32
+          Top = 181
+          Width = 353
+          Height = 17
+          Caption = 'A &WinBox nyelvi be'#225'll'#237't'#225'sainak haszn'#225'lata (ha lehets'#233'ges)'
+          Checked = True
+          TabOrder = 2
+          TabStop = True
+          OnClick = UpdateLangRadio
+        end
+        object rbEmuLangFix: TRadioButton
+          Left = 32
+          Top = 203
+          Width = 353
+          Height = 17
+          Caption = 'Haszn'#225'lni &k'#237'v'#225'nt nyelv kiv'#225'laszt'#225'sa az al'#225'bbi list'#225'b'#243'l:'
+          TabOrder = 3
+          OnClick = UpdateLangRadio
+        end
+        object cbEmuLang: TComboBox
+          Left = 40
+          Top = 253
+          Width = 321
+          Height = 21
+          Style = csDropDownList
+          ItemIndex = 0
+          TabOrder = 4
+          Text = '(A rendszer alap'#233'rtelmezett nyelve)'
+          Items.Strings = (
+            '(A rendszer alap'#233'rtelmezett nyelve)')
+        end
+        object rbEmuLangFree: TRadioButton
+          Left = 32
+          Top = 315
+          Width = 361
+          Height = 17
+          Caption = '&Ne ker'#252'ljenek m'#243'dos'#237't'#225'sra az emul'#225'tor nyelvi be'#225'll'#237't'#225'sai'
+          TabOrder = 5
+          OnClick = UpdateLangRadio
+        end
+        object btnDefEmuLang: TButton
+          Tag = 6
+          Left = 248
+          Top = 280
+          Width = 113
+          Height = 25
+          Caption = 'A&lap'#233'rtelmezett'
+          TabOrder = 6
+          OnClick = btnDefaultClick
+        end
+        object cbEmuLangForced: TCheckBox
+          Left = 18
+          Top = 345
+          Width = 375
+          Height = 17
+          Caption = 
+            'Az emul'#225'tor nyelvi be'#225'll'#237't'#225'sainak &fel'#252'lb'#237'r'#225'l'#225'sa minden virtu'#225'li' +
+            's g'#233'pn'#233'l'
+          TabOrder = 7
         end
       end
     end
@@ -686,19 +890,21 @@ object ProgSettDlg: TProgSettDlg
           402
           155)
         object lbToolName: TLabel
-          Left = 50
+          Left = 18
           Top = 28
-          Width = 23
-          Height = 13
+          Width = 55
+          Height = 22
           Alignment = taRightJustify
+          AutoSize = False
           Caption = '&N'#233'v:'
         end
         object lbToolPath: TLabel
-          Left = 25
+          Left = 18
           Top = 56
-          Width = 48
-          Height = 13
+          Width = 55
+          Height = 25
           Alignment = taRightJustify
+          AutoSize = False
           Caption = '&El'#233'r'#233'si '#250't:'
         end
         object edToolName: TEdit
@@ -715,6 +921,8 @@ object ProgSettDlg: TProgSettDlg
           Width = 292
           Height = 84
           Anchors = [akLeft, akTop, akRight, akBottom]
+          BiDiMode = bdLeftToRight
+          ParentBiDiMode = False
           ScrollBars = ssVertical
           TabOrder = 2
           WantReturns = False
@@ -767,8 +975,9 @@ object ProgSettDlg: TProgSettDlg
         object lbCustomTemplates: TLabel
           Left = 29
           Top = 80
-          Width = 110
-          Height = 13
+          Width = 197
+          Height = 25
+          AutoSize = False
           Caption = 'Egyedi &sablonok helye:'
           FocusControl = edCustomTemplates
         end
@@ -787,6 +996,8 @@ object ProgSettDlg: TProgSettDlg
           Top = 99
           Width = 306
           Height = 21
+          BiDiMode = bdLeftToRight
+          ParentBiDiMode = False
           TabOrder = 0
           Text = 'edCustomTemplates'
         end
@@ -903,6 +1114,8 @@ object ProgSettDlg: TProgSettDlg
           Top = 108
           Width = 216
           Height = 21
+          BiDiMode = bdLeftToRight
+          ParentBiDiMode = False
           TabOrder = 1
           Text = 'edGlobalLog'
         end

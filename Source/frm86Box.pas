@@ -140,6 +140,7 @@ type
 
     procedure GetTranslation(Language: TLanguage); stdcall;
     procedure Translate; stdcall;
+    procedure FlipBiDi; stdcall;
   end;
 
 resourcestring
@@ -208,13 +209,13 @@ begin
   inherited;
   SideRatio := DefSideRatio;
 
-  SetWindowLong(cgPanels.Handle, GWL_STYLE,
-    GetWindowLong(cgPanels.Handle, GWL_STYLE) and not WS_BORDER);
-
-  Translate;
+  SetWindowLongPtr(cgPanels.Handle, GWL_STYLE,
+    GetWindowLongPtr(cgPanels.Handle, GWL_STYLE) and not WS_BORDER);
 
   PicturePager := TPicturePager.Create(nil);
   with PicturePager do begin
+    ParentBiDiMode := false;
+    BiDiMode := bdLeftToRight;
     Parent := RightPanel;
     with bvScreenshots do
       PicturePager.SetBounds(Left + 1, Top + 1, Width - 2, Height - 2);
@@ -225,8 +226,6 @@ begin
     Stretch := smFixAspect;
     AspectX := 4;
     AspectY := 3;
-
-    Cursor := crHandPoint;
 
     OnContextPopup := PicturePagerContextPopup;
     OnClick := PicturePagerClick;
@@ -270,6 +269,12 @@ begin
   FolderMonitor.Free;
   PicturePager.Free;
   inherited;
+end;
+
+procedure TFrame86Box.FlipBiDi;
+begin
+  SetCommCtrlBiDi(Handle, LocaleIsBiDi);
+  SetCatPanelsBiDi(cgPanels, LocaleIsBidi);
 end;
 
 procedure TFrame86Box.FrameResize(Sender: TObject);
@@ -375,6 +380,9 @@ procedure TFrame86Box.UpdateColor(const Profile: T86BoxProfile);
 var
   Success: boolean;
 begin
+  if not WinBoxMain.IsColorsAllowed then
+    exit;
+
   Success := LockWindowUpdate(Handle);
   try
     if Assigned(Profile) then

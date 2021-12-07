@@ -69,7 +69,7 @@ type
       procedure ImportWinBox(const AProfileID: string);
       class procedure GetWinBoxVMs(Strings: TStrings);
 
-      procedure Import86Mgr(const AFriendlyName: string);
+      procedure Import86Mgr(const AFriendlyName: string; var ProgramRoot: string);
       class procedure Get86MgrVMs(Strings: TStrings);
 
       procedure Save;
@@ -253,7 +253,9 @@ begin
     end;
 end;
 
-procedure TProfile.Import86Mgr(const AFriendlyName: string);
+//ProgramRoot is asked when starts with '', and can be reused for chained imports
+procedure TProfile.Import86Mgr(const AFriendlyName: string;
+  var ProgramRoot: string);
 const
   Version: array [0..6] of byte = ($31, $2E, $37, $2E, $32, $2E, $30);
   VersionOffset = $2A;
@@ -262,6 +264,7 @@ const
 var
   TextLen, I: byte;
   Text: UTF8String;
+  Helper: string;
 begin
   CreateID;
   EraseProt := Config.EraseProtLvl > 0;
@@ -285,8 +288,7 @@ begin
                  ReadBuffer(TextLen, 1);
 
                  SetLength(Text, TextLen);
-                 Text[High(Text)] := #0;
-                 if Size > 0 then
+                 if TextLen > 0 then
                    ReadBuffer(Text[1], TextLen);
 
                  Seek(5, soFromCurrent);
@@ -294,7 +296,11 @@ begin
                  case I of
                    1: FriendlyName     := String(Text);
                    2: Description      := String(Text);
-                   3: WorkingDirectory := String(Text);
+                   3: begin
+                        Helper := String(Text);
+                        Check86MgrPath(Helper, ProgramRoot);
+                        WorkingDirectory := Helper;
+                      end;
                  end;
                end;
              finally

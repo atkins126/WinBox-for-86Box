@@ -3860,7 +3860,6 @@ object HDSelect: THDSelect
     00000000FFFF0000FC0F00008007000000070000000700000003000080030000
     80030000C0010000C0010000E0010000E0010000F0010000F0030000F87F0000
     FFFF0000}
-  OldCreateOrder = False
   Position = poOwnerFormCenter
   OnCreate = FormCreate
   OnShow = FormShow
@@ -3886,6 +3885,7 @@ object HDSelect: THDSelect
     TitleFont.Name = 'Tahoma'
     TitleFont.Style = []
     OnCellClick = DBGridCellClick
+    OnColumnMoved = DBGridColumnMoved
   end
   object gbFilter: TGroupBox
     AlignWithMargins = True
@@ -4152,9 +4152,10 @@ object HDSelect: THDSelect
       33)
     object lbSortBy: TLabel
       Left = 17
-      Top = 14
-      Width = 83
-      Height = 13
+      Top = 13
+      Width = 88
+      Height = 17
+      AutoSize = False
       Caption = '&Rendez'#233's alapja:'
     end
     object cbSortBy: TComboBox

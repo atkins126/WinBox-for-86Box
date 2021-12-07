@@ -1,4 +1,4 @@
-(*
+﻿(*
 
     WinBox for 86Box - An alternative manager for 86Box VMs
 
@@ -24,10 +24,15 @@ unit frmImportVM;
 interface
 
 uses
-  Windows, SysUtils, Classes, Graphics, Controls, Forms, Dialogs,
-  StdCtrls, ComCtrls, ExtCtrls, uLang, frmMainForm;
+  Windows, Messages, SysUtils, Classes, Graphics, Controls, Forms,
+  Dialogs, StdCtrls, ComCtrls, ExtCtrls, uLang, frmMainForm;
 
 type
+  TListView = class(ComCtrls.TListView)
+  protected
+    procedure WMPaint(var Msg: TWMPaint); message WM_PAINT;
+  end;
+
   TImportVM = class(TForm, ILanguageSupport)
     bvBottom: TBevel;
     btnNext: TButton;
@@ -88,8 +93,10 @@ type
     function ImportManual: boolean;
   public
     LangName: string;
+    RootOf86Mgr: string;
     procedure GetTranslation(Language: TLanguage); stdcall;
     procedure Translate; stdcall;
+    procedure FlipBiDi; stdcall;
   end;
 
 var
@@ -199,13 +206,26 @@ begin
     I.Checked := (Sender as TComponent).Tag <> 0;
 end;
 
+procedure TImportVM.FlipBiDi;
+begin
+  BiDiMode := BiDiModes[LocaleIsBiDi];
+  FlipChildren(true);
+
+  edName.Alignment := Alignments[LocaleIsBiDi];
+  SetListViewBiDi(lvImport.Handle, LocaleIsBiDi);
+end;
+
 procedure TImportVM.FormCreate(Sender: TObject);
 begin
-  LoadImage(ImgBannerImport, imgBanner);
+  LoadImage(ImgBannerImport, imgBanner, false);
   pcPages.ActivePageIndex := 0;
 
   LangName := Copy(ClassName, 2, MaxInt);
   Translate;
+  if LocaleIsBiDi then
+    FlipBiDi;
+
+  RootOf86Mgr := '';
 end;
 
 procedure TImportVM.Reload(Sender: TObject);
@@ -230,7 +250,7 @@ begin
       if rb86BoxManager.Checked then
         with TProfile.Create('', false) do
           try
-            Import86Mgr(I.Caption);
+            Import86Mgr(I.Caption, RootOf86Mgr);
             Save;
             Result := true;
           finally
@@ -292,7 +312,7 @@ begin
     for S in Import do
       with TProfile.Create('', false) do
         try
-          Import86Mgr(S);
+          Import86Mgr(S, RootOf86Mgr);
           if (WinBoxMain.Profiles.FindByWorkDir(WorkingDirectory) <> -1)
              or not DirectoryExists(WorkingDirectory) then
                Leave.Add(FriendlyName)
@@ -394,5 +414,20 @@ begin
   end;
 end;
 
+
+{ TListView }
+
+procedure TListView.WMPaint(var Msg: TWMPaint);
+var
+  PS: TPaintStruct;
+begin
+  Msg.DC := BeginPaint(Handle, PS);
+  try
+    InvariantBiDiLayout(Msg.DC);
+  finally
+    inherited;
+    EndPaint(Handle, PS);
+  end;
+end;
 
 end.

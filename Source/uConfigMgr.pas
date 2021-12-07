@@ -37,12 +37,17 @@ type
     LaunchTimeout: integer;
 
     EmulatorPath,
-    Repository: string;
+    Repository,
+    Artifact: string;
     AutoUpdate,
     GetSource: boolean;
 
     DisplayMode: integer;
     DisplayValues: TStrings;
+
+    ProgramLang,
+    EmulatorLang: string;
+    EmuLangCtrl: integer;
 
     Tools: TStrings;
 
@@ -59,6 +64,11 @@ type
     procedure Default;
     procedure Reload; virtual;
     procedure ReloadTools;
+
+    function RepoToArtf(const Repository, Artifact: string): string;
+
+    function AdjustEmuLang: string;
+
     procedure Save;
 
     destructor Destroy; override;
@@ -111,28 +121,33 @@ type
     class function IsExists: boolean;
   end;
 
+resourcestring
+  EmuDefaultLanguage = 'en-US';
+  EmuSystemLanguage  = 'system';
+
 implementation
 
-uses uCommUtil;
+uses uCommUtil, uLang;
 
 resourcestring
-  PfTemplatesPath  = 'Templates\';
+  PfTemplatesPath    = 'Templates\';
 
-  DefMachineRoot   = 'WinBox for 86Box\Virtual Machines\';
-  DefEmulatorPath  = 'WinBox for 86Box\Emulator Files\86Box.exe';
-  DefTemplatesPath = 'WinBox for 86Box\Custom Templates\';
-  DefGlobalLogFile = 'WinBox for 86Box\86Box.log';
-  DefNameDefFile   = 'WinBox for 86Box\namedefs.ini';
+  DefMachineRoot     = 'WinBox for 86Box\Virtual Machines\';
+  DefEmulatorPath    = 'WinBox for 86Box\Emulator Files\86Box.exe';
+  DefTemplatesPath   = 'WinBox for 86Box\Custom Templates\';
+  DefGlobalLogFile   = 'WinBox for 86Box\86Box.log';
+  DefNameDefFile     = 'WinBox for 86Box\namedefs.ini';
 
-  DefOtherImages   = 'Other Disk Images\';
+  DefOtherImages     = 'Other Disk Images\';
 
-  DefJenkinsRepo   = 'https://ci.86box.net/job/86Box';
-  DefRomsRepo      = 'https://github.com/86Box/roms';
-  DefSourceRepo    = 'https://github.com/86Box/86Box';
+  DefJenkinsRepo     = 'https://ci.86box.net/job/86Box';
+  DefJenkinsArtifact = 'Windows-32';
+  DefRomsRepo        = 'https://github.com/86Box/roms';
+  DefSourceRepo      = 'https://github.com/86Box/86Box';
 
-  DefDisplayValues = 'video_fullscreen_scale=1'#13#10 +
-                     'dpi_scale=0'#13#10 +
-                     'vid_resize=2';
+  DefDisplayValues   = 'video_fullscreen_scale=1'#13#10 +
+                       'dpi_scale=0'#13#10 +
+                       'vid_resize=2';
 
   RegConfigKey       = 'Software\Laci bá''\WinBox for 86Box\Configuration';
 
@@ -154,6 +169,10 @@ resourcestring
   KeyGlobalLogFile   = 'GlobalLogFile';
   KeyDebugMode       = 'DebugMode';
   KeyCrashDump       = 'CrashDump';
+  KeyArtifact        = 'Artifact';
+  KeyProgramLang     = 'ProgramLang';
+  KeyEmulatorLang    = 'EmulatorLang';
+  KeyEmuLangCtrl     = 'EmuLangCtrl';
 
   ImportWinBoxRoot   = 'Software\Laci bá''\WinBox';
   Import86MgrRoot    = 'Software\86Box';
@@ -178,6 +197,25 @@ begin
   inherited;
 end;
 
+(*
+  This function creates the lang code to be passed to the emulator,
+  by properly combining EmulatorLang, ProgramLang, and EmuLangCtrl.
+*)
+function TConfiguration.AdjustEmuLang: string;
+begin
+  case LoWord(EmuLangCtrl) of
+    0:
+     if ProgramLang = PrgSystemLanguage then
+       Result := EmuSystemLanguage
+     else
+       Result := ProgramLang;
+    1:
+      Result := EmulatorLang
+    else
+      Result := '';
+  end;
+end;
+
 procedure TConfiguration.Reload;
 begin
   Default;
@@ -197,7 +235,16 @@ begin
           LaunchTimeout   := ReadIntegerDef(KeyLaunchTimeout, LaunchTimeout);
 
           EmulatorPath    := ReadStringDef(KeyEmulatorPath, EmulatorPath);
+
           Repository      := ReadStringDef(KeyRepository, Repository);
+          Artifact        := ReadStringDef(KeyArtifact, Artifact);
+
+          if (Repository <> Defaults.Repository) or
+             (pos('86Box-', Artifact) = 0) then begin
+            Artifact := RepoToArtf(Repository, Artifact);
+            Repository := Defaults.Repository;
+          end;
+
           AutoUpdate      := ReadBoolDef(KeyAutoUpdate, AutoUpdate);
           GetSource       := ReadBoolDef(KeyGetSource, GetSource);
 
@@ -210,6 +257,16 @@ begin
                   end;
             3:    DisplayValues.Clear;
           end;
+
+          if LocaleOverride = PrgSystemLanguage then
+            ProgramLang     := PrgSystemLanguage
+          else if LocaleOverride <> '' then
+            ProgramLang     := Locale
+          else
+            ProgramLang     := ReadStringDef(KeyProgramLang, ProgramLang);
+
+          EmulatorLang    := ReadStringDef(KeyEmulatorLang, EmulatorLang);
+          EmuLangCtrl     := ReadIntegerDef(KeyEmuLangCtrl, EmuLangCtrl);
 
           if ValueExists(KeyTools) then begin
             Tools.Clear;
@@ -244,6 +301,22 @@ begin
     end;
 end;
 
+function TConfiguration.RepoToArtf(
+  const Repository, Artifact: string): string;
+begin
+  if pos('-Dev', Repository) <> 0 then
+    Result := '86Box-NDR-'
+  else if pos('-Debug', Repository) <> 0 then
+    Result := '86Box-NDR-'
+  else
+    Result := '86Box-';
+
+  if Artifact = '' then
+    Result := Result + 'Windows-32'
+  else
+    Result := Result + Artifact;
+end;
+
 procedure TConfiguration.Save;
 begin
   with TRegistry.Create(KEY_ALL_ACCESS) do
@@ -261,6 +334,7 @@ begin
 
           WriteStringChk(KeyEmulatorPath, EmulatorPath, Defaults.EmulatorPath);
           WriteStringChk(KeyRepository, Repository, Defaults.Repository);
+          WriteStringChk(KeyArtifact, Artifact, Defaults.Artifact);
           WriteBoolChk(KeyAutoUpdate, AutoUpdate, Defaults.AutoUpdate);
           WriteBoolChk(KeyGetSource, GetSource, Defaults.GetSource);
 
@@ -268,6 +342,12 @@ begin
           DeleteValue(KeyDisplayValues);
           if DisplayMode in [1, 2] then
             WriteStringMulti(KeyDisplayValues, DisplayValues);
+
+          WriteStringChk(KeyProgramLang, ProgramLang, Defaults.ProgramLang);
+          LocaleOverride := '';
+
+          WriteStringChk(KeyEmulatorLang, EmulatorLang, Defaults.EmulatorLang);
+          WriteIntegerChk(KeyEmuLangCtrl, EmuLangCtrl, Defaults.EmuLangCtrl);
 
           DeleteValue(KeyTools);
           if Tools.Count <> 0 then
@@ -305,11 +385,16 @@ begin
 
   EmulatorPath := Documents + DefEmulatorPath;
   Repository := DefJenkinsRepo;
+  Artifact := DefJenkinsArtifact;
   AutoUpdate := true;
   GetSource := false;
 
   DisplayMode := 0;
   DisplayValues.Text := DefDisplayValues;
+
+  ProgramLang  := PrgDefaultLanguage;
+  EmulatorLang := EmuDefaultLanguage;
+  EmuLangCtrl  := 0;
 
   Tools.Clear;
 
@@ -354,7 +439,7 @@ begin
       EmulatorPath := IncludeTrailingPathDelimiter(
         GetEnvironmentVariable('APPDATA')) + 'Laci bá''\WinBox\86Box\86Box.exe';
 
-      Repository := ReadString('Configuration.86Box', 'Repository', Repository);
+      Artifact := RepoToArtf(Repository, Artifact);
       AutoUpdate := ReadInteger('Configuration.86Box', 'AutoUpdate', ord(AutoUpdate)) <> 0;
       GetSource := ReadInteger('Configuration.86Box', 'DownloadSource', ord(GetSource)) <> 0;
 
@@ -393,14 +478,19 @@ begin
 end;
 
 procedure T86MgrImport.Reload;
+var
+  ProgramRoot: string;
 begin
   Default;
+  ProgramRoot := '';
 
   with TRegistry.Create(KEY_READ) do
     try
       if OpenKeyReadOnly(Import86MgrRoot) then
         try
           MachineRoot := IncludeTrailingPathDelimiter(ReadStringDef('CFGdir', MachineRoot));
+          Check86MgrPath(MachineRoot, ProgramRoot);
+
           DiskImages := MachineRoot + DefOtherImages;
 
           if ReadBoolDef('CloseToTray', TrayBehavior = 2) then
@@ -411,13 +501,17 @@ begin
             TrayBehavior := 0;
 
           LaunchTimeout := ReadIntegerDef('LaunchTimeout', LaunchTimeout);
-          EmulatorPath := ReadStringDef('EXEdir', EmulatorPath) + '86Box.exe';
+          EmulatorPath := ReadStringDef('EXEdir', EmulatorPath);
+          Check86MgrPath(EmulatorPath, ProgramRoot);
+          EmulatorPath := IncludeTrailingPathDelimiter(EmulatorPath) + '86Box.exe';
+
           if not FileExists(EmulatorPath) then
             EmulatorPath := Defaults.EmulatorPath;
 
           if ReadBoolDef('EnableLogging', LoggingMode = 1) then begin
             LoggingMode := 1;
             GlobalLogFile := ReadStringDef('LogPath', GlobalLogFile);
+            Check86MgrPath(GlobalLogFile, ProgramRoot);
           end;
 
           DisplayMode := 3;

@@ -158,7 +158,7 @@ const
     Mouse:    'none';
     Joystick: 'none';
 
-    Memory:      256;
+    Memory:      64;
     CPUSpeed:    4772728;
     VoodooType:  0;
     HasVoodoo:   false;
@@ -191,6 +191,16 @@ var
   I: integer;
   Path: string;
 begin
+
+(*
+    Note!
+
+    If the short parameters will change again in 86box.c,
+    you have to keep this section up-to-date. The other
+    sections are fine with long parameters.
+
+*)
+
   Path := '';
   with CommandLineToArgs(Process.CommandLine) do
     try
@@ -202,7 +212,15 @@ begin
                ExpandFileNameTo(
                  ExcludeTrailingPathDelimiter(Strings[I + 1]),
                  ExtractFilePath(Process.ExecutablePath)));
-           end;
+           end
+        else if ((UpperCase(Strings[I]) = '-Z') or
+                 (UpperCase(Strings[I]) = '--LASTVMPATH'))
+                and (I < Count - 1) then begin
+                  Path := IncludeTrailingPathDelimiter(
+                             ExpandFileNameTo(
+                               ExcludeTrailingPathDelimiter(Strings[Count - 1]),
+                               ExtractFilePath(Process.ExecutablePath)));
+                end;
     finally
       Free;
     end;
@@ -375,7 +393,7 @@ begin
     Result := Execute(IDM_CONFIG);
   end
   else if State = PROFILE_STATE_STOPPED then
-    Result := Start('-S -N')
+    Result := Start('--settings --noconfirm')
   else
     Result := false;
 
@@ -394,26 +412,31 @@ var
   Buffer: array [0..50] of char;
   I: integer;
 begin
-  CommandLine := format('-P "%s" %s',
+  CommandLine := format('--vmpath "%s" %s',
     [ExcludeTrailingPathDelimiter(WorkingDirectory), Parameters]);
 
-  if NameDefs.ReadInteger('params', 'Support.VmName', 1) <> 0 then
-    CommandLine := format('-V "%s"', [FriendlyName]) + CommandLine;
+  if NameDefs.ReadInteger('params', 'Support.VmName', 0) <> 0 then
+    CommandLine := format('--vmname "%s" %s', [FriendlyName, CommandLine]);
+
+  if boolean(HiWord(Config.EmuLangCtrl)) and
+     (LoWord(Config.EmuLangCtrl) <> 2) and
+     (NameDefs.ReadInteger('params', 'Support.LangCtrl', 0) <> 0) then
+    CommandLine := format('--lang "%s" %s', [Config.AdjustEmuLang, CommandLine]);
 
   if Fullscreen then
-    CommandLine := '-F ' + CommandLine;
+    CommandLine := '--fullscreen ' + CommandLine;
 
   if (DebugMode = 2) or ((DebugMode = 0) and Config.DebugMode) then
-    CommandLine := '-D ' + CommandLine;
+    CommandLine := '--debug ' + CommandLine;
 
   if (CrashDump = 2) or ((CrashDump = 0) and Config.CrashDump) then
-    CommandLine := '-R ' + CommandLine;
+    CommandLine := '--crashdump ' + CommandLine;
 
   if not ((LoggingMode = 1) or
       ((LoggingMode = 0) and (Config.LoggingMode = 0))) then begin
          LogFile := GetLogFile;
          ForceDirectories(ExtractFilePath(LogFile));
-         CommandLine := format('-L "%s" %s', [LogFile, CommandLine]);
+         CommandLine := format('--logfile "%s" %s', [LogFile, CommandLine]);
       end;
 
   Files := TStringList.Create;
@@ -699,7 +722,7 @@ begin
   Text := Config.ReadString('General', 'window_fixed_res', '');
 
   if Text = '' then
-    Text := Config.ReadString('WinBox', 'WindowSize', '960x720');
+    Text := Config.ReadString('WinBox', 'window_fixed_res', '960x720');
 
   Result.X := 1;
   Result.Y := 1;
@@ -815,9 +838,9 @@ var
 begin
   Self := DefConfig;
 
-  Config_SCSI      := NameDefs.ReadInteger('config', 'Mode.SCSI', 2);
-  Config_Cassette  := NameDefs.ReadInteger('config', 'Mode.Cassette', 2);
-  Config_Cartridge := NameDefs.ReadInteger('config', 'Mode.Cartridge', 1);
+  Config_SCSI      := NameDefs.ReadInteger('config', 'Mode.SCSI', 0);
+  Config_Cassette  := NameDefs.ReadInteger('config', 'Mode.Cassette', 0);
+  Config_Cartridge := NameDefs.ReadInteger('config', 'Mode.Cartridge', 0);
 
   Config := TryLoadIni(ConfigFile);
 

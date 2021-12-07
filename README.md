@@ -8,7 +8,7 @@ Currently this software is the successor of [WinBox Reloaded](https://github.com
 <p align="center"><img src="https://github.com/laciba96/WinBox-for-86Box/blob/6be9b55daa445b1864c36bd31b092e4bd815d071/Images/Wiki/Screenshot.PNG" width="500" height="353"></img></p>
 
 **It's most noticeable features are:**
-- It automatically updates the emulators from Jenkins.
+- It automatically updates 86Box from Jenkins.
 - It collects all your VMs in a slick brand new list, with some customization options.
 - It has a very user friendly UI.
 - It has a template based virtual machine creation wizard, which makes life so much easier.
@@ -19,9 +19,11 @@ Currently this software is the successor of [WinBox Reloaded](https://github.com
 - It can create floppy images, and VHD and IMG hard disk images.
 
 **The program currently supports these display languages:**
-- Hungarian (hu-HU)
-- English (en-US)
-- Italian (it-IT)
+
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Hungarian (hu-HU), English (en-US), Italian (it-IT), Portuguese Brazilian (pt-BR), German (de-DE), 
+Simplified Chinese (zh-CN)
+
+Special thanks to explorerdotexe, Altieres Lima da Silva and startmenu for translating the program.
 
 If you want to add your language to the supported list, you can find the language files under the Translations folder.
 These files are simple UTF-8 encoded C-style escape sequenced INI-files, can be created by any kind of text editor.
@@ -31,9 +33,11 @@ Add your new language as a pull request and I most probably include it with the 
 
 **System Requirements:**
 
-  - **Minimum**: Windows 7 SP1 or Windows 8.1, with the latest updates.  
   - **Recommended**: Windows 10, and in theory Windows 11 also supported.
+  - **Minimum**: Windows 7 SP1 or Windows 8.1, with the **latest updates**.  
 
-The program is written in **Delphi 10.3** and uses the [JEDI Code Library (JCL)](https://github.com/project-jedi/jcl).
+*Note: Under Windows 7 there are known [problems](https://github.com/laciba96/WinBox-for-86Box/issues/3#issuecomment-886091172) with the updater due to missing cryptographic capabilities by default. These problems can be solved by installing Internet Explorer 11 and the latest updates after SP1.*
+
+The program is written in **Delphi 11** and uses the [JEDI Code Library (JCL)](https://github.com/project-jedi/jcl).
 
 **The application is licensed under the GNU GPL v3.0 license.**

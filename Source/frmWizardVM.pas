@@ -96,7 +96,7 @@ type
     lbOption4: TLabel;
     tabStorage: TTabSheet;
     lbStorageTitle: TLabel;
-    Label12: TLabel;
+    lbStorageDesc: TLabel;
     cbHDD: TCheckBox;
     lbType1: TLabel;
     lbGeometry: TLabel;
@@ -162,6 +162,7 @@ type
 
     procedure GetTranslation(Language: TLanguage); stdcall;
     procedure Translate; stdcall;
+    procedure FlipBiDi; stdcall;
   end;
 
 var
@@ -359,9 +360,17 @@ begin
   end;
 end;
 
+procedure TWizardVM.FlipBiDi;
+begin
+  BiDiMode := BiDiModes[LocaleIsBiDi];
+  FlipChildren(true);
+
+  edName.Alignment := Alignments[LocaleIsBiDi];
+end;
+
 procedure TWizardVM.FormCreate(Sender: TObject);
 begin
-  LoadImage('BANNER_NEW', imgBanner);
+  LoadImage('BANNER_NEW', imgBanner, false);
   WinBoxMain.Icons32.GetIcon(0, imgWarning.Picture.Icon);
 
   Samples := TVMSampleFilter.Create(true);
@@ -378,6 +387,8 @@ end;
 procedure TWizardVM.FormShow(Sender: TObject);
 begin
   Translate;
+  if LocaleIsBiDi then
+    FlipBiDi;
 
   pcPages.ActivePageIndex := 0;
   Samples.Clear;
@@ -554,7 +565,7 @@ begin
           Config.WriteString('WinBox', 'window_fixed_res',
             Sample.GetCustomKey('General', 'WindowSize', '960x720'));
 
-          with uConfigMgr.Config do
+          with uConfigMgr.Config do begin
             if DisplayMode <> 3 then begin
               for I := 0 to DisplayValues.Count - 1 do
                 Config.WriteString('General',
@@ -563,6 +574,10 @@ begin
               Config.WriteString('General', 'window_fixed_res',
                 Sample.GetCustomKey('General', 'WindowSize', '960x720'));
             end;
+
+            if LoWord(EmuLangCtrl) <> 2 then
+              Config.WriteString('General', 'language', AdjustEmuLang);
+          end;
 
           with TProfile.Create(ProfileID, false) do
             try

@@ -25,7 +25,7 @@ interface
 
 uses
   Types, UITypes, Windows, Messages, SysUtils, Classes, Controls, Forms, Graphics,
-  Dialogs, Actions, ActnList, Menus, StdCtrls, ExtCtrls, VclTee.TeeGDIPlus,
+  TypInfo, Dialogs, Actions, ActnList, Menus, StdCtrls, ExtCtrls, VclTee.TeeGDIPlus,
   ComCtrls, VCLTee.TeEngine, VCLTee.TeeProcs, VCLTee.Chart, VCLTee.Series,
   BaseImageCollection, ImageCollection, ImageList, ImgList, VirtualImageList,
   GraphUtil, Generics.Collections, u86Box, Vcl.ToolWin, uLang, AppEvnts, frm86Box,
@@ -35,6 +35,11 @@ type
   TListBox = class(StdCtrls.TListBox)
   private
     procedure CNDrawItem(var Msg: TWMDrawItem); message CN_DRAWITEM;
+  end;
+
+  TToolBar = class(ComCtrls.TToolBar)
+  protected
+    procedure WMPaint(var Msg: TWMPaint); message WM_PAINT;
   end;
 
   TWinBoxMain = class(TForm, ILanguageSupport)
@@ -370,6 +375,10 @@ type
       var Handled: Boolean);
     procedure ListDblClick(Sender: TObject);
     procedure acWinBoxUpdateExecute(Sender: TObject);
+    procedure ImageCollectionGetBitmapBiDi(ASourceImage: TWICImage; AWidth,
+      AHeight: Integer; out ABitmap: TBitmap);
+    procedure ImageCollectionDrawBiDi(ASourceImage: TWICImage; ACanvas: TCanvas;
+      ARect: TRect; AProportional: Boolean);
   private
     //Lista kirajzolásához szükséges cuccok
     HalfCharHeight, BorderThickness: integer;
@@ -377,6 +386,7 @@ type
     clHighlight1, clHighlight2,
     clDisabled1, clDisabled2: TColor;
 
+    //A lista a és a PageControl közti aránytartáshoz, méretezéskor
     SideRatio: single;
 
     procedure ResetChart(Chart: TChart);
@@ -385,6 +395,13 @@ type
 
     procedure WMEnterSizeMove(var Message: TMessage); message WM_ENTERSIZEMOVE;
   public
+    //Virtuális gépek színének engedélyezése/letiltása (pl. BiDi-nél letiltva)
+    IsColorsAllowed: boolean;
+
+    //Nyelvváltáskor, a program eredeti címének megtartása
+    InitialTitle: string;
+
+    //Belsõ cuccok
     IsAllStopped,
     IsAnyRunning,          //not IsAllStopped
     IsSelectedVM,
@@ -407,6 +424,10 @@ type
 
     procedure GetTranslation(Language: TLanguage); stdcall;
     procedure Translate; stdcall;
+    procedure FlipBiDi; stdcall;
+
+    procedure ChangeBiDi(const NewBiDi: boolean);
+    procedure ChangeLanguage(const ALocale: string);
 
     procedure GetRttiReport(Result: TStrings);
     procedure DoFirstUpdate(var Msg: TMessage); message WM_USER;
@@ -423,7 +444,8 @@ implementation
 uses JclDebug, uProcessMon, uProcProfile, uCommUtil, frmProgSettDlg,
   frmProfSettDlg, frmImportVM, uWinProfile, uConfigMgr, ShellAPI,
   uCommText, Rtti, frmErrorDialog, frmAboutDlg, frmSelectHDD, frmNewFloppy,
-  frmWizardHDD, frmWizardVM, uBaseProfile, frmSplash, dmWinBoxUpd;
+  frmWizardHDD, frmWizardVM, uBaseProfile, frmSplash, dmWinBoxUpd,
+  WinCodec;
 
 const
   MaxPoints = 60;
@@ -440,6 +462,7 @@ resourcestring
   StrChartAxisBase = 'PerfMon.Chart%s.Axis%s';
   ImFloppyImages = 'Floppy Disk Images';
   WizNewVM = 'WizardVM.NewVM';
+  StrLangNeedsRestart = 'WinBox.LangNeedsRestart';
 
 {$R *.dfm}
 
@@ -673,6 +696,7 @@ begin
     try
       if ShowModal = mrOK then begin
         FormShow(Sender);
+        ChangeLanguage(Config.ProgramLang);
         DefProfile.Default;
         acUpdateList.Execute;
       end;
@@ -854,6 +878,7 @@ begin
           //-1:  Enabled := State = PROFILE_STATE_STOPPED;
           -2:  Enabled := State = PROFILE_STATE_RUNNING;
           -6:  Enabled := State <> 0;
+          -7, -8:  Enabled := IsColorsAllowed;
           -127: Enabled := State = 0;
           else if Tag >= 0 then
             Enabled := CanState(Tag)
@@ -945,6 +970,64 @@ begin
       end;
 end;
 
+procedure TWinBoxMain.ChangeBiDi(const NewBiDi: boolean);
+begin
+  if NewBiDi <> LocaleIsBiDi then begin
+    LocaleIsBiDi := NewBiDi;
+
+    FlipBiDi;
+  end;
+end;
+
+procedure TWinBoxMain.ChangeLanguage(const ALocale: string);
+var
+  I: integer;
+
+  NewLoc: string;
+  NewLang: TLanguage;
+  NewBiDi: boolean;
+
+  function IsProgSettVisible: boolean;
+  var
+    I: integer;
+  begin
+    Result := false;
+    for I := 0 to Screen.FormCount - 1 do
+      if Screen.Forms[I] is TProgSettDlg then
+        exit(true);
+  end;
+
+begin
+  NewLoc := ALocale;
+  NewLang := TryLoadLocale(NewLoc, NewBiDi);
+
+  if (((NewLoc = PrgBaseLanguage) and (Locale <> NewLoc))
+      or (NewBiDi <> LocaleIsBiDi)) and IsProgSettVisible then begin
+    MessageBox(Handle, _P(StrLangNeedsRestart),
+      PChar(Application.Title), MB_ICONINFORMATION or MB_OK);
+    NewLang.Free;
+    exit;
+  end
+  else if NewLoc = Locale then
+    exit
+  else begin
+    Locale := NewLoc;
+
+    if Assigned(Language) then
+      Language.Free;
+
+    Language := NewLang;
+  end;
+
+  Frame86Box.Translate;
+
+  for I := 0 to Screen.FormCount - 1 do
+    if Supports(Screen.Forms[I], ILanguageSupport) then
+      (Screen.Forms[I] as ILanguageSupport).Translate;
+
+  ChangeBiDi(NewBiDi);
+end;
+
 procedure TWinBoxMain.DeleteVM(DeleteFiles: boolean);
 var
   FItemIndex: integer;
@@ -986,21 +1069,22 @@ end;
 procedure TWinBoxMain.DoFirstUpdate(var Msg: TMessage);
 begin
   inherited;
-  if (Msg.LParam = 7) and (Msg.WParam = 13) and Assigned(WinBoxSplash) then begin //Validity Test
-    List.Enabled := true;
-    Pages.Enabled := true;
+  if (Msg.LParam = 7) and (Msg.WParam = 13) and Assigned(WinBoxSplash) then
+    try //Validity Test
+      List.Enabled := true;
+      Pages.Enabled := true;
 
-    Screen.Cursor := crDefault;
+      Screen.Cursor := crDefault;
 
-    WinBoxSplash.OnClose := nil;
-    WinBoxSplash.Close;
-    FreeAndNil(WinBoxSplash);
+      WinBoxSplash.OnClose := nil;
+      WinBoxSplash.Close;
+      FreeAndNil(WinBoxSplash);
 
-    if IsAllStopped and Updater.AskAutoUpdate then
-      Updater.ShowModal;
-
-    FirstUpdateDone := true;
-  end;
+      if IsAllStopped and Updater.AskAutoUpdate then
+        Updater.ShowModal;
+    finally
+      FirstUpdateDone := true;
+    end;
 end;
 
 procedure TWinBoxMain.DummyUpdate(Sender: TObject);
@@ -1044,6 +1128,62 @@ begin
   ShellExecute(Handle, 'open', PChar((Sender as TMenuItem).Hint), nil, nil, SW_SHOWNORMAL);
 end;
 
+procedure TWinBoxMain.FlipBiDi;
+begin
+  SetCommCtrlBiDi(Handle, LocaleIsBiDi);
+
+  HomeMenu.BiDiMode := BiDiModes[LocaleIsBiDi];
+  PerfMenu.BiDiMode := BiDiModes[LocaleIsBiDi];
+  VMMenu.BiDiMode := BiDiModes[LocaleIsBiDi];
+
+  if LocaleIsBiDi then begin
+    ImageCollection.OnDraw := ImageCollectionDrawBiDi;
+    ImageCollection.OnGetBitmap := ImageCollectionGetBitmapBiDi;
+
+    ImageCollection1.OnDraw := ImageCollectionDrawBiDi;
+    ImageCollection1.OnGetBitmap := ImageCollectionGetBitmapBiDi;
+  end
+  else begin
+    ImageCollection.OnDraw := nil;
+    ImageCollection.OnGetBitmap := nil;
+
+    ImageCollection1.OnDraw := nil;
+    ImageCollection1.OnGetBitmap := nil;
+  end;
+
+  Icons16.UpdateImageList;
+  ListImages.UpdateImageList;
+
+  ImageCollection1.OnDraw := nil;
+  ImageCollection1.OnGetBitmap := nil;
+
+  Icons32.UpdateImageList;
+
+  SetCommCtrlBiDi(List.Handle, LocaleIsBiDi);
+  SetCommCtrlBiDi(StatusBar.Handle, LocaleIsBiDi);
+
+  if LocaleIsBiDi then begin
+    MissingDiskDlg.Flags := MissingDiskDlg.Flags + [tfRtlLayout];
+    DeleteDialog.Flags := DeleteDialog.Flags + [tfRtlLayout];
+  end
+  else begin
+    MissingDiskDlg.Flags := MissingDiskDlg.Flags - [tfRtlLayout];
+    DeleteDialog.Flags := DeleteDialog.Flags - [tfRtlLayout];
+  end;
+
+  SetCommCtrlBiDi(tabHome.Handle, LocaleIsBiDi);
+  SetCommCtrlBiDi(tabPerfMon.Handle, LocaleIsBiDi);
+
+  SetCommCtrlBiDi(tabCPU.Handle, false);
+  SetCommCtrlBiDi(tabRAM.Handle, false);
+  SetCommCtrlBiDi(tabVMs.Handle, false);
+
+  SetCommCtrlBiDi(tbGlobal.Handle, LocaleIsBiDi);
+  SetCommCtrlBiDi(tbVMs.Handle, LocaleIsBiDi);
+
+  Frame86Box.FlipBiDi;
+end;
+
 procedure TWinBoxMain.FormClose(Sender: TObject; var Action: TCloseAction);
 begin
   if Config.TrayBehavior = 3 then begin
@@ -1059,6 +1199,11 @@ var
   I: integer;
 begin
   //GUI part
+  InitialTitle := Application.Title;
+
+  Icons16.SetSize(GetSystemMetrics(SM_CXSMICON),
+                  GetSystemMetrics(SM_CYSMICON));
+
   HalfCharHeight := Canvas.TextHeight('W');
   BorderThickness := (List.ItemHeight - ListImages.Height) div 2;
 
@@ -1069,10 +1214,6 @@ begin
   L := L * 10 div 8;
   clHighlight2 := ColorHLSToRGB(H, L, S);
   clDisabled2 := ColorHLSToRGB(H, L, 0);
-  Translate;
-
-  tbVMs.ShowCaptions := true;
-  tbGlobal.ShowCaptions := true;
 
   for I := 0 to Pages.PageCount - 1 do
     Pages.Pages[I].TabVisible := false;
@@ -1091,6 +1232,18 @@ begin
       if cgPanels.Panels[I] <> cpSystem then
         (TObject(cgPanels.Panels[I]) as TCategoryPanel).Collapsed := true;
   end;
+
+  Locale := '-'; //cseréljük ki az alapérték '' nyelvet akármire
+  if LocaleOverride = '' then
+    ChangeLanguage(Config.ProgramLang) //azért hogy ez végigfusson
+  else
+    ChangeLanguage(LocaleOverride);
+  IsColorsAllowed := not LocaleIsBiDi;
+
+  Application.CreateForm(TWinBoxUpd, WinBoxUpd);
+
+  tbVMs.ShowCaptions := true;
+  tbGlobal.ShowCaptions := true;
 
   SideRatio := DefSideRatio;
   Icons32.GetIcon(6, DeleteDialog.CustomMainIcon);
@@ -1214,6 +1367,7 @@ procedure TWinBoxMain.ListDrawItem(Control: TWinControl; Index: Integer;
   Rect: TRect; State: TOwnerDrawState);
 var
   StateText: string;
+  IconLeft, TextLeft: integer;
 begin
   try
     with Control as TListBox, Canvas do begin
@@ -1235,29 +1389,32 @@ begin
 
       Brush.Style := bsClear;
 
-      HalfCharHeight := TextHeight('W') div 2;
+      TextLeft := Rect.Left + ListImages.Width + 2 * BorderThickness + 1;
+      IconLeft := Rect.Left + BorderThickness;
+
+      HalfCharHeight := TextHeight('Wg') div 2;
       if Index < 2 then begin
-        ListImages.Draw(Canvas, Rect.Left + BorderThickness,
+        ListImages.Draw(Canvas, IconLeft,
                         Rect.Top + BorderThickness, Index);
 
         Font.Style := [fsBold];
-        TextOut(Rect.Left + ListImages.Width + 2 * BorderThickness + 1,
+        TextOut(TextLeft,
                 (Rect.Top + Rect.Bottom) div 2 - HalfCharHeight,
                 Items[Index]);
       end
       else begin
-          Draw(Rect.Left + BorderThickness,
+          Draw(IconLeft,
                Rect.Top + BorderThickness,
                Icons[Index - 2]);
 
           Font.Style := [fsBold];
-          TextOut(Rect.Left + ListImages.Width + 2 * BorderThickness + 1,
+          TextOut(TextLeft,
                   Rect.Top + (Rect.Bottom - Rect.Top) div 3 - HalfCharHeight,
                   Items[Index]);
 
           Font.Style := [];
           StateText := _T(format(StrState, [Profiles[Index - 2].State]));
-          TextOut(Rect.Left + ListImages.Width + 2 * BorderThickness + 1,
+          TextOut(TextLeft,
                   Rect.Top + (Rect.Bottom - Rect.Top) div 3 * 2 - HalfCharHeight,
                   StateText);
       end;
@@ -1287,6 +1444,7 @@ procedure TWinBoxMain.ListMouseDown(Sender: TObject; Button: TMouseButton;
   Shift: TShiftState; X, Y: Integer);
 var
   TempIndex: integer;
+  Handled: boolean;
 begin
   TempIndex := List.ItemIndex;
   List.ItemIndex := List.ItemAtPos(Point(X, Y), true);
@@ -1294,6 +1452,11 @@ begin
     List.ItemIndex := TempIndex;
 
   ListClick(List);
+
+  //Megoldja azt a bugot, hogy BiDi-módban nem mûködik a List.ContextPopup
+  Handled := false;
+  if (Button = mbRight) and LocaleIsBiDi then
+    ListContextPopup(Sender, Point(X, Y), Handled);
 end;
 
 procedure TWinBoxMain.ListReload(Sender: TObject);
@@ -1326,7 +1489,7 @@ begin
 
         Image := TWICImage.Create;
         Image.Assign(Profile.Icon);
-        ScaleWIC(Image, ListImages.Width, ListImages.Height);
+        ScaleWIC(Image, ListImages.Width, ListImages.Height, false);
         Icons.Add(Image);
 
         cTemp := RGB(random($100), random($100), random($100));
@@ -1412,7 +1575,7 @@ begin
     exit;
 
   try
-    if (Pages.ActivePageIndex = 2) and IsSelectedVM then
+    if Visible and (Pages.ActivePageIndex = 2) and IsSelectedVM then
       Frame86Box.UpdateDelta(Profiles[List.ItemIndex - 2]);
 
     CPU := 0; RAM := 0;
@@ -1568,12 +1731,30 @@ begin
   end;
 end;
 
+procedure TWinBoxMain.ImageCollectionDrawBiDi(ASourceImage: TWICImage;
+  ACanvas: TCanvas; ARect: TRect; AProportional: Boolean);
+begin
+  //Az AProportional tulajdonság jelenleg nem támogatott ezen a módon.
+  ImgColl_DrawBiDi(ASourceImage, ACanvas, ARect, AProportional);
+end;
+
+procedure TWinBoxMain.ImageCollectionGetBitmapBiDi(ASourceImage: TWICImage; AWidth,
+  AHeight: Integer; out ABitmap: TBitmap);
+begin
+  ImgColl_GetBitmapBiDi(ASourceImage, AWidth, AHeight, ABitmap);
+end;
+
 procedure TWinBoxMain.Translate;
 var
   I: integer;
 begin
   with Language do begin
+    SetThreadUILanguage(GetLCID(Locale));
+
+    Caption := InitialTitle;
     Translate('WinBoxMain', Self);
+    Application.Title := Caption;
+
     Translate('Actions', Actions);
     Translate('MainMenu', MainMenu.Items);
     Translate('HomeMenu', HomeMenu.Items);
@@ -1650,6 +1831,21 @@ begin
   with Msg.DrawItemStruct^ do
     itemState := itemState and not ODS_FOCUS;
   inherited;
+end;
+
+{ TToolBar }
+
+procedure TToolBar.WMPaint(var Msg: TWMPaint);
+var
+  PS: TPaintStruct;
+begin
+  Msg.DC := BeginPaint(Handle, PS);
+  try
+    InvariantBiDiLayout(Msg.DC);
+  finally
+    inherited;
+    EndPaint(Handle, PS);
+  end;
 end;
 
 initialization
